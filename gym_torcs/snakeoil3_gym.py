@@ -58,7 +58,10 @@ import sys
 import getopt
 import os
 import time
+import numpy as np
+from PIL import Image
 PI= 3.14159265359
+FRAME_NO = 0
 
 data_size = 2**17
 
@@ -116,7 +119,7 @@ def bargraph(x,mn,mx,w,c='X'):
     return '[%s]' % (nnc+npc+ppc+pnc)
 
 class Client():
-    def __init__(self,H=None,p=None,i=None,e=None,t=None,s=None,d=None,vision=False):
+    def __init__(self,H=None,p=None,i=None,e=None,t=None,s=None,d=None,vision=True):
         # If you don't like the option defaults,  change them here.
         self.vision = vision
 
@@ -150,7 +153,7 @@ class Client():
         # == Initialize Connection To Server ==
         self.so.settimeout(1)
 
-        n_fail = 5
+        n_fail = -1
         while True:
             # This string establishes track sensor angles! You can customize them.
             #a= "-90 -75 -60 -45 -30 -20 -15 -10 -5 0 5 10 15 20 30 45 60 75 90"
@@ -564,11 +567,33 @@ def drive_example(c):
         R['gear']=6
     return
 
+
+def obs_vision_to_image_rgb(obs_image_vec):
+    global FRAME_NO
+    image_vec =  obs_image_vec
+    w = 64
+    h = 64
+    nc = 3
+    image_vec = np.flipud(np.array(image_vec).astype(np.uint8).reshape([w, h, 3]))
+    im = Image.fromarray(image_vec)
+    im.save("./imgs/%05d.png" % FRAME_NO)
+    FRAME_NO+=1
+    return image_vec
+
 # ================ MAIN ================
 if __name__ == "__main__":
+    if os.path.exists("./imgs"):
+        os.system("rm -rf ./imgs")
+    os.mkdir("./imgs")
+
     C= Client(p=3101)
     for step in range(C.maxSteps,0,-1):
         C.get_servers_input()
         drive_example(C)
+        img = obs_vision_to_image_rgb(C.S.d['img'])
+        ctrl = C.R.d
+        print(ctrl, img.shape)
         C.respond_to_server()
     C.shutdown()
+
+    os.system("ffmpeg -i imgs/%05d.png video.webm")
