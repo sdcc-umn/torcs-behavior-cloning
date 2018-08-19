@@ -1,6 +1,19 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+import sys, tty, termios
+
+def getchar():
+    fd = sys.stdin.fileno()
+    old_settings = termios.tcgetattr(fd)
+    try:
+        tty.setraw(sys.stdin.fileno())
+        ch = sys.stdin.read(1)
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+    return ch
+
+
 class Agent(object):
     def __init__(self, dim_action):
         self.dim_action = dim_action
@@ -23,7 +36,7 @@ class Agent(object):
             """ The code below is for checking the vision input. This is very heavy for real-time Control
                 So you may need to remove.
             """
-            print(vision.shape)
+            # print(vision.shape)
             """
             img = np.ndarray((64,64,3))
             for i in range(3):
@@ -33,4 +46,14 @@ class Agent(object):
             plt.draw()
             plt.pause(0.001)
             """
-        return np.tanh(np.random.randn(self.dim_action)) # random action
+        # action = np.tanh(np.random.randn(self.dim_action)) # random action
+        user_input = getchar()
+
+        if user_input == 'a':
+            action = [0.1]
+        elif user_input == 'd':
+            action = [-0.1]
+        else:
+            action = [0]
+        return action
+        # return
