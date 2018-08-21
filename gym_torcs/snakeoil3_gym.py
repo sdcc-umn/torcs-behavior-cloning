@@ -53,6 +53,7 @@
 # Try `snakeoil.py --help` to get started.
 
 # for Python3-based torcs python robot client
+import re
 import socket
 import sys
 import getopt
@@ -62,8 +63,14 @@ import numpy as np
 from PIL import Image
 PI= 3.14159265359
 FRAME_NO = 0
+PER_TRACK_FRAME_LIMIT = 5000
 
 data_size = 2**17
+
+TRACK_DIR = "/usr/local/share/games/torcs/tracks"
+PATH_TO_CONFIG_DIR = "/usr/local/share/games/torcs/config"
+TRACK_SELECT_FILE = os.path.join(PATH_TO_CONFIG_DIR, "raceman/practice.xml")
+SCREEN_FILE = os.path.join(PATH_TO_CONFIG_DIR, "screen.xml")
 
 # Initialize help messages
 ophelp=  'Options:\n'
@@ -569,31 +576,90 @@ def drive_example(c):
 
 
 def obs_vision_to_image_rgb(obs_image_vec):
-    global FRAME_NO
     image_vec =  obs_image_vec
     w = 64
     h = 64
     nc = 3
     image_vec = np.flipud(np.array(image_vec).astype(np.uint8).reshape([w, h, 3]))
-    im = Image.fromarray(image_vec)
-    im.save("./imgs/%05d.png" % FRAME_NO)
-    FRAME_NO+=1
     return image_vec
 
+def set_sim_size(x,y):
+    with open(SCREEN_FILE, 'r') as f:
+        text = f.read()
+    text = re.sub(r'<attnum name="x" val="\d+"\/>', '<attnum name="x" val="%s"/>'%x, text)
+    text = re.sub(r'<attnum name="y" val="\d+"\/>', '<attnum name="y" val="%s"/>'%y, text)
+    text = re.sub(r'<attnum name="window width" val="\d+"\/>','<attnum name="window width" val="%s"/>'%x, text)
+    text = re.sub(r'<attnum name="window height" val="\d+"\/>','<attnum name="window height" val="%s"/>'%y, text)
+    with open(SCREEN_FILE, 'w') as f:
+        f.write(text)
+
+
+def set_track(t):
+    with open(TRACK_SELECT_FILE, 'r') as f:
+        text = f.read()
+    text = re.sub(r"""<attstr name="name" val=".+"/>
+      <attstr name="category" val=".+"/>""", r"""<attstr name="name" val="%s"/>
+      <attstr name="category" val="road"/>"""%t, text)
+
+    with open(TRACK_SELECT_FILE, 'w') as f:
+        f.write(text)
+
+
+DB_DIRS = os.path.dirname(os.path.abspath("__FILE__"))
+class DB(object):
+    def __init__(self, trackname):
+        """ should take in a track name and create a database for it"""
+        # if trackname does not already have an associated DIR
+        DIRPATH = os.path.join(DB_DIRS, trackname)
+        db_n = 1
+        if not os.path.exists(DIRPATH):
+            # create that dir
+            os.mkdir(DIRPATH)
+            # create a metadatafile that keeps track of the number of databases in this file.
+            with open(os.path.join(DIRPATH, ".meta"), 'w') as f:
+                f.write(str(db_n))
+        else:
+            with open(os.path.join(DIRPATH,".meta"), 'r') as f:
+                db_n = int(f.read().strip())
+            with open(os.path.join(DIRPATH, ".meta"), 'w') as f:
+                f.write(str(db_n+1))
+        db_n+=1
+        db_name = os.path.join(DIRPATH, "trial_%d" % db_n)
+        os.mkdir(db_name)
+        f_handle = open(os.path.join(db_name, "db.txt"),'w')
+        self.f_handle = f_handle
+        self.db_name = db_name
+    def close(self):
+        # self.hdf5_file.clo
+        self.f_handle.close()
+    def write(self, img, ctrl, frame_number):
+        self.f_handle.write(str(ctrl)+"\n")
+        im = Image.fromarray(img)
+        im.save(os.path.join(self.db_name, "%05d.png" % step))
+
+
 # ================ MAIN ================
+TRACK_LIST = ["e-track-4", "g-track-3"]
 if __name__ == "__main__":
-    if os.path.exists("./imgs"):
-        os.system("rm -rf ./imgs")
-    os.mkdir("./imgs")
-
-    C= Client(p=3101)
-    for step in range(C.maxSteps,0,-1):
-        C.get_servers_input()
-        drive_example(C)
-        img = obs_vision_to_image_rgb(C.S.d['img'])
-        ctrl = C.R.d
-        print(ctrl, img.shape)
-        C.respond_to_server()
-    C.shutdown()
-
-    os.system("ffmpeg -i imgs/%05d.png video.webm")
+    set_sim_size(64,64)
+    C=None
+    try:
+        for t in TRACK_LIST:
+            set_track(t)
+            DB = DB(t)
+            C= Client(p=3101)
+            for step in range(PER_TRACK_FRAME_LIMIT):
+                C.get_servers_input()
+                drive_example(C)
+                img = obs_vision_to_image_rgb(C.S.d['img'])
+                ctrl = C.R.d
+                DB.write(img, ctrl, step)
+                C.respond_to_server()
+            C.shutdown()
+            DB.close()
+    except KeyboardInterrupt:
+        print("Shutting down")
+    finally:
+        C.shutdown if C else 0
+        set_sim_size(640, 480)
+        # os.system("ffmpeg -i imgs/%05d.png video.webm")
