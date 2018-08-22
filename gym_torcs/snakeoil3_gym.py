@@ -61,6 +61,10 @@ import os
 import time
 import numpy as np
 from PIL import Image
+from scipy.misc import imread
+import h5py
+from tqdm import tqdm
+
 PI= 3.14159265359
 FRAME_NO = 0
 
@@ -294,6 +298,7 @@ class Client():
                % (self.maxSteps,self.port)))
         self.so.close()
         self.so = None
+        os.system("pkill -f torcs")
         #sys.exit() # No need for this really.
 
 class ServerState():
@@ -641,6 +646,27 @@ class DB(object):
         to_write = ','.join([img_path, str(ctrl['accel']), str(ctrl['steer'])])
         self.f_handle.write(to_write+"\n")
 
+    def compile(self):
+        # open annotations file
+        annot_file = os.path.join(self.db_name, "db.txt")
+        with open(annot_file, 'r') as f:
+            samples = f.readlines()
+        m = len(samples)
+        # create database (for now, one-one)
+        dataset_output_path = os.path.join(self.db_name, "db.hdf5")
+        hdf5_file = h5py.File(dataset_output_path, mode='w')
+        hdf5_file.create_dataset("img", (m,64,64,3),np.uint8)
+        hdf5_file.create_dataset("accel", (m,1), np.float16)
+        hdf5_file.create_dataset("steer", (m,1), np.float16)
+        # save in the trial directory as an hdf5
+        for i in tqdm(range(m)):
+            sample = samples[i]
+            img_path, accel, steer = sample.split(",")
+            img = imread(img_path)
+            hdf5_file["img"][i,...] = img
+            hdf5_file["accel"][i,...] = float(accel)
+            hdf5_file["steer"][i,...] = float(steer)
+
 
 # ================ MAIN ================
 TRACK_LIST = ["e-track-4"] #, "g-track-3"]
@@ -653,7 +679,7 @@ if __name__ == "__main__":
             set_track(t)
             DB = DB(t)
             C= Client(p=3101)
-            for step in range(PER_TRACK_FRAME_LIMIT):
+            for step in tqdm(range(PER_TRACK_FRAME_LIMIT)):
                 C.get_servers_input()
                 drive_example(C)
                 img = obs_vision_to_image_rgb(C.S.d['img'])
@@ -662,6 +688,7 @@ if __name__ == "__main__":
                 C.respond_to_server()
             C.shutdown()
             DB.close()
+            DB.compile()
     except KeyboardInterrupt:
         print("Shutting down")
     finally:
