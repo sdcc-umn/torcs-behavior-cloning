@@ -1,0 +1,4 @@
+67a68,70
+>       <attstr name="current driver" val="scr_server 1"/>
+>       <attnum name="camera" val="2"/>
+>       <attnum name="camera head list" val="0"/>

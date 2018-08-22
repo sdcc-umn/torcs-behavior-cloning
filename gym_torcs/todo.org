@@ -1,0 +1,41 @@
+* auto-configure the permissions for user (low)
+- /usr/local/share/games/torcs/config/graph.xml = for view
+- /usr/local/share/games/torcs/config/raceman/practice.xml = for track
+- /usr/local/share/games/torcs/config/screen.xml = for screen size.
+
+* Rename the snakeoil file to something clearer
+* Implement our own RL interface. 
+* Auto-configure the view
+
+  <section name="Display Mode">
+    <section name="Player">
+      <attnum name="camera" val="0"/>
+      <attnum name="camera head list" val="0"/>
+    </section>
+
+    <section name="0">
+      <attnum name="fovy-9-0" val="9"/>
+    </section>
+
+  </section>
+
+BECOMES
+
+  <section name="Display Mode">
+    <section name="Player">
+      <attnum name="camera" val="0"/>
+      <attnum name="camera head list" val="0"/>
+    </section>
+
+    <section name="0">
+      <attnum name="fovy-9-0" val="9"/>
+      <attstr name="current driver" val="scr_server 1"/>
+      <attnum name="camera" val="2"/>
+      <attnum name="camera head list" val="0"/>
+    </section>
+
+  </section>
+* Configure data generation tool
+- How many frames? How many tracks?
+* Stream data directly to an online-training model so that we can see it catch-up to expert skill in short time :)
+* maintain the PID of the spawned torcs process so we can kill it.

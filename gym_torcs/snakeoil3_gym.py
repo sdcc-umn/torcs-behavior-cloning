@@ -63,7 +63,6 @@ import numpy as np
 from PIL import Image
 PI= 3.14159265359
 FRAME_NO = 0
-PER_TRACK_FRAME_LIMIT = 5000
 
 data_size = 2**17
 
@@ -605,7 +604,7 @@ def set_track(t):
         f.write(text)
 
 
-DB_DIRS = os.path.dirname(os.path.abspath("__FILE__"))
+DB_DIRS = os.path.join(os.path.dirname(os.path.abspath("__FILE__")), "databases")
 class DB(object):
     def __init__(self, trackname):
         """ should take in a track name and create a database for it"""
@@ -614,7 +613,7 @@ class DB(object):
         db_n = 1
         if not os.path.exists(DIRPATH):
             # create that dir
-            os.mkdir(DIRPATH)
+            os.makedirs(DIRPATH)
             # create a metadatafile that keeps track of the number of databases in this file.
             with open(os.path.join(DIRPATH, ".meta"), 'w') as f:
                 f.write(str(db_n))
@@ -626,20 +625,26 @@ class DB(object):
         db_n+=1
         db_name = os.path.join(DIRPATH, "trial_%d" % db_n)
         os.mkdir(db_name)
+        os.mkdir(os.path.join(db_name, "imgs"))
         f_handle = open(os.path.join(db_name, "db.txt"),'w')
         self.f_handle = f_handle
         self.db_name = db_name
     def close(self):
         # self.hdf5_file.clo
         self.f_handle.close()
+
+
     def write(self, img, ctrl, frame_number):
-        self.f_handle.write(str(ctrl)+"\n")
+        img_path = os.path.join(self.db_name, "imgs/%05d.jpeg" % step)
         im = Image.fromarray(img)
-        im.save(os.path.join(self.db_name, "%05d.png" % step))
+        im.save(img_path)
+        to_write = ','.join([img_path, str(ctrl['accel']), str(ctrl['steer'])])
+        self.f_handle.write(to_write+"\n")
 
 
 # ================ MAIN ================
-TRACK_LIST = ["e-track-4", "g-track-3"]
+TRACK_LIST = ["e-track-4"] #, "g-track-3"]
+PER_TRACK_FRAME_LIMIT = 10000    # that's a lot; use for single-track
 if __name__ == "__main__":
     set_sim_size(64,64)
     C=None
