@@ -1,5 +1,5 @@
 * auto-configure the permissions for user (low)
-- /usr/local/share/games/torcs/config/graph.xml = for view
+- /usr/local/share/games/torcs/config/graph.xml = for camera view
 - /usr/local/share/games/torcs/config/raceman/practice.xml = for track
 - /usr/local/share/games/torcs/config/screen.xml = for screen size.
 
