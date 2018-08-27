@@ -39,3 +39,4 @@ BECOMES
 - How many frames? How many tracks?
 * Stream data directly to an online-training model so that we can see it catch-up to expert skill in short time :)
 * maintain the PID of the spawned torcs process so we can kill it.
+* Make up your mind about accel vs throttle
