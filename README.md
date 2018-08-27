@@ -27,7 +27,7 @@ If you get an error at the end, don't worry about it. (TODO: FIX)
 ## Recording Images with the simulator
 - cd to gym-torcs directory
 -`python snakeoil3_gym.py`
-- That will record images in to ./databases/<track>/<trial>/imgs directory.
+- That will record images in to `./databases/<track>/<trial>/imgs` directory.
 - To make images into a movie, use fmpeg on the directory: `Ffmpeg -i <path>/imgs/%05d.png video.webm`
   
 ## Training the agent
