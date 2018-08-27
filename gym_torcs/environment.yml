@@ -1,0 +1,24 @@
+name: SDCC-behavior-cloning-TORCS
+channels:
+  - https://conda.anaconda.org/menpo # what is menpo?
+  - conda-forge
+dependencies:
+    - python==3.5.2
+    - numpy
+    - matplotlib
+    - jupyter
+    - opencv3
+    - pillow
+    - scikit-learn
+    - scikit-image
+    - scipy
+    - h5py
+    - eventlet
+    - flask-socketio
+    - seaborn
+    - pandas
+    - imageio
+    - pip:
+        - moviepy
+        - tensorflow==1.1
+        - keras==1.2dependencies:

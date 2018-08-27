@@ -631,7 +631,8 @@ class DB(object):
         db_name = os.path.join(DIRPATH, "trial_%d" % db_n)
         os.mkdir(db_name)
         os.mkdir(os.path.join(db_name, "imgs"))
-        f_handle = open(os.path.join(db_name, "db.txt"),'w')
+        f_handle = open(os.path.join(db_name, "db.csv"),'w')
+        f_handle.write("image,throttle,ctrl\n")
         self.f_handle = f_handle
         self.db_name = db_name
     def close(self):
