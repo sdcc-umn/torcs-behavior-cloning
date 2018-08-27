@@ -4,6 +4,8 @@ Experiments conducted with models run on simulators
 # How to use
 ## Python dependencies
 - Install anaconda python3 (https://www.anaconda.com/download/#linux)
+- clone this repo.
+- cd into the gym-torcs directory.
 - create a virtual environment with Conda, Anaconda's CLI tool:
 `conda env create -f environment.yml -n sdcc`. If you get an error at the end, don't worry about it. (TODO: FIX)
 - activate the environment `source activate sdcc`
