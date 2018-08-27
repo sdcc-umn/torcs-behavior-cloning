@@ -670,7 +670,7 @@ class DB(object):
 
 # ================ MAIN ================
 TRACK_LIST = ["e-track-4"] #, "g-track-3"]
-PER_TRACK_FRAME_LIMIT = 10000    # that's a lot; use for single-track
+PER_TRACK_FRAME_LIMIT = 5000    # that's a lot; use for single-track
 if __name__ == "__main__":
     set_sim_size(64,64)
     C=None
