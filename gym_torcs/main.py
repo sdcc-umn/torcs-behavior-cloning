@@ -1,6 +1,7 @@
 import keras as kr
 import argparse
 import os
+import time
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
@@ -12,7 +13,7 @@ from keras.layers import Lambda, Conv2D, MaxPooling2D, Dropout, Dense, Flatten
 from sklearn.model_selection import train_test_split
 from keras.models import Sequential
 from keras.optimizers import Adam
-from keras.callbacks import ModelCheckpoint
+from keras.callbacks import ModelCheckpoint, TensorBoard
 
 
 np.random.seed(0)
@@ -131,13 +132,15 @@ def train_model(model, config, X_train, X_validate, y_train, y_validate):
                                  mode = 'auto')
     model.compile(loss='mean_squared_error', optimizer=kr.optimizers.Adam(lr=config.learning_rate))
 
+    tensorboard = TensorBoard(log_dir ="./logs/{}".format(time.time()))
+
     model.fit_generator(batch_generator(X_train, y_train, config.batch_size, True),
                         config.samples_per_epoch,
                         config.nb_epoch,
                         max_q_size=1,  # TODO Wat?
                         validation_data = batch_generator(X_validate, y_validate, config.batch_size, False),
                         nb_val_samples = len(X_validate),
-                        callbacks =[checkpoint],
+                        callbacks =[checkpoint, tensorboard],
                         verbose = 1)
 
 
@@ -154,7 +157,7 @@ def main():
     parser.add_argument('-t', help='test size fraction',    dest='test_size',         type=float, default=0.2)
     parser.add_argument('-k', help='drop out probability',  dest='keep_prob',         type=float, default=0.5)
     parser.add_argument('-n', help='number of epochs',      dest='nb_epoch',          type=int,   default=10)
-    parser.add_argument('-s', help='samples per epoch',     dest='samples_per_epoch', type=int,   default=20000)
+    parser.add_argument('-s', help='samples per epoch',     dest='samples_per_epoch', type=int,   default=200)
     parser.add_argument('-b', help='batch size',            dest='batch_size',        type=int,   default=40)
     parser.add_argument('-o', help='save best models only', dest='save_best_only',    type=s2b,   default='true')  # TODO Awesome.
     parser.add_argument('-l', help='learning rate',         dest='learning_rate',     type=float, default=1.0e-4)
