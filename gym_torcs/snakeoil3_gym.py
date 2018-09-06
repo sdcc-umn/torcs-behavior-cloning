@@ -63,6 +63,7 @@ import numpy as np
 from PIL import Image
 from scipy.misc import imread
 import h5py
+import argparse
 from tqdm import tqdm
 
 PI= 3.14159265359
@@ -610,7 +611,7 @@ def set_track(t):
 
 
 DB_DIRS = os.path.join(os.path.dirname(os.path.abspath("__FILE__")), "databases")
-class DB(object):
+class DataBase(object):
     def __init__(self, trackname):
         """ should take in a track name and create a database for it"""
         # if trackname does not already have an associated DIR
@@ -640,7 +641,7 @@ class DB(object):
         self.f_handle.close()
 
 
-    def write(self, img, ctrl, frame_number):
+    def write(self, img, ctrl, step):
         img_path = os.path.join(self.db_name, "imgs/%05d.jpeg" % step)
         im = Image.fromarray(img)
         im.save(img_path)
@@ -669,16 +670,15 @@ class DB(object):
             hdf5_file["steer"][i,...] = float(steer)
 
 
-# ================ MAIN ================
 TRACK_LIST = ["e-track-4"] #, "g-track-3"]
 PER_TRACK_FRAME_LIMIT = 5000    # that's a lot; use for single-track
-if __name__ == "__main__":
+def record_images():
     set_sim_size(64,64)
-    C=None
+    C = None
     try:
         for t in TRACK_LIST:
             set_track(t)
-            DB = DB(t)
+            DB = DataBase(t)
             C= Client(p=3101)
             for step in tqdm(range(PER_TRACK_FRAME_LIMIT)):
                 C.get_servers_input()
@@ -696,3 +696,21 @@ if __name__ == "__main__":
         C.shutdown if C else 0
         set_sim_size(640, 480)
         # os.system("ffmpeg -i imgs/%05d.png video.webm")
+
+def agent_model_play():
+    return
+    model = load_model()
+    set_sim_size(64,64)         # TODO: make this actually full-sized
+    C = Client(p=3101)
+    while True:
+        C.get_servers_input()
+        model.drive(C)
+        C.respond_to_server()
+
+# ================ MAIN ================
+
+if __name__ == "__main__":
+    arg_parser = argparse.ArgumentParser(description="Specify if you want to record images or run the model")
+    arg_parser.add_argument("--play", dest='action', action='store_const', const=agent_model_play, default=record_images, help = 'have the agent play')
+    args=arg_parser.parse_args()
+    args.action()
