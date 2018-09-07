@@ -76,7 +76,7 @@ PATH_TO_CONFIG_DIR = "/usr/local/share/games/torcs/config"
 TRACK_SELECT_FILE = os.path.join(PATH_TO_CONFIG_DIR, "raceman/practice.xml")
 SCREEN_FILE = os.path.join(PATH_TO_CONFIG_DIR, "screen.xml")
 
-Initialize help messages
+# Initialize help messages
 ophelp=  'Options:\n'
 ophelp+= ' --host, -H <host>    TORCS server host. [localhost]\n'
 ophelp+= ' --port, -p <port>    TORCS port. [3001]\n'
@@ -650,7 +650,7 @@ class DataBase(object):
 
     def compile(self):
         # open annotations file
-        annot_file = os.path.join(self.db_name, "db.txt")
+        annot_file = os.path.join(self.db_name, "db.csv")
         with open(annot_file, 'r') as f:
             samples = f.readlines()
         m = len(samples)
@@ -670,8 +670,8 @@ class DataBase(object):
             hdf5_file["steer"][i,...] = float(steer)
 
 
-TRACK_LIST = ["e-track-4"] #, "g-track-3"]
-PER_TRACK_FRAME_LIMIT = 5000    # that's a lot; use for single-track
+TRACK_LIST = ["g-track-3"] #, "g-track-3"]
+PER_TRACK_FRAME_LIMIT = 50000    # that's a lot; use for single-track
 def record_images():
     set_sim_size(64,64)
     C = None
@@ -689,7 +689,7 @@ def record_images():
                 C.respond_to_server()
             C.shutdown()
             DB.close()
-            DB.compile()
+            # DB.compile()
     except KeyboardInterrupt:
         print("Shutting down")
     finally:
@@ -707,6 +707,7 @@ def load_model():
 def agent_model_play():
     model = load_model()
     set_sim_size(64,64)         # TODO: make this actually full-sized
+    set_track(TRACK_LIST[0])
     C = Client(p=3101)
     while True:
         C.get_servers_input()
