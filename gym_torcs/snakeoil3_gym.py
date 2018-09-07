@@ -76,7 +76,7 @@ PATH_TO_CONFIG_DIR = "/usr/local/share/games/torcs/config"
 TRACK_SELECT_FILE = os.path.join(PATH_TO_CONFIG_DIR, "raceman/practice.xml")
 SCREEN_FILE = os.path.join(PATH_TO_CONFIG_DIR, "screen.xml")
 
-# Initialize help messages
+Initialize help messages
 ophelp=  'Options:\n'
 ophelp+= ' --host, -H <host>    TORCS server host. [localhost]\n'
 ophelp+= ' --port, -p <port>    TORCS port. [3001]\n'
@@ -700,7 +700,7 @@ def record_images():
 def load_model():
     with open("model_def.json", 'r') as f:
         model = model_from_json(f.read())
-    model.load_weights("model-010.h5")
+    model.load_weights("weights.h5")
     return model
 
 
