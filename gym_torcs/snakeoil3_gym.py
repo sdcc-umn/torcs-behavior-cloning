@@ -56,7 +56,6 @@
 import re
 import socket
 import sys
-import getopt
 import os
 import time
 import numpy as np
@@ -65,6 +64,7 @@ from scipy.misc import imread
 import h5py
 import argparse
 from tqdm import tqdm
+from keras.models import model_from_json
 
 PI= 3.14159265359
 FRAME_NO = 0
@@ -76,7 +76,7 @@ PATH_TO_CONFIG_DIR = "/usr/local/share/games/torcs/config"
 TRACK_SELECT_FILE = os.path.join(PATH_TO_CONFIG_DIR, "raceman/practice.xml")
 SCREEN_FILE = os.path.join(PATH_TO_CONFIG_DIR, "screen.xml")
 
-# Initialize help messages
+Initialize help messages
 ophelp=  'Options:\n'
 ophelp+= ' --host, -H <host>    TORCS server host. [localhost]\n'
 ophelp+= ' --port, -p <port>    TORCS port. [3001]\n'
@@ -142,7 +142,7 @@ class Client():
         self.stage= 3 # 0=Warm-up, 1=Qualifying 2=Race, 3=unknown <Default=3>
         self.debug= False
         self.maxSteps= 100000  # 50steps/second
-        self.parse_the_command_line()
+        # self.parse_the_command_line()
         if H: self.host= H
         if p: self.port= p
         if i: self.sid= i
@@ -203,46 +203,46 @@ class Client():
                 print("Client connected on %d.............." % self.port)
                 break
 
-    def parse_the_command_line(self):
-        try:
-            (opts, args) = getopt.getopt(sys.argv[1:], 'H:p:i:m:e:t:s:dhv',
-                       ['host=','port=','id=','steps=',
-                        'episodes=','track=','stage=',
-                        'debug','help','version'])
-        except getopt.error as why:
-            print('getopt error: %s\n%s' % (why, usage))
-            sys.exit(-1)
-        try:
-            for opt in opts:
-                if opt[0] == '-h' or opt[0] == '--help':
-                    print(usage)
-                    sys.exit(0)
-                if opt[0] == '-d' or opt[0] == '--debug':
-                    self.debug= True
-                if opt[0] == '-H' or opt[0] == '--host':
-                    self.host= opt[1]
-                if opt[0] == '-i' or opt[0] == '--id':
-                    self.sid= opt[1]
-                if opt[0] == '-t' or opt[0] == '--track':
-                    self.trackname= opt[1]
-                if opt[0] == '-s' or opt[0] == '--stage':
-                    self.stage= int(opt[1])
-                if opt[0] == '-p' or opt[0] == '--port':
-                    self.port= int(opt[1])
-                if opt[0] == '-e' or opt[0] == '--episodes':
-                    self.maxEpisodes= int(opt[1])
-                if opt[0] == '-m' or opt[0] == '--steps':
-                    self.maxSteps= int(opt[1])
-                if opt[0] == '-v' or opt[0] == '--version':
-                    print('%s %s' % (sys.argv[0], version))
-                    sys.exit(0)
-        except ValueError as why:
-            print('Bad parameter \'%s\' for option %s: %s\n%s' % (
-                                       opt[1], opt[0], why, usage))
-            sys.exit(-1)
-        if len(args) > 0:
-            print('Superflous input? %s\n%s' % (', '.join(args), usage))
-            sys.exit(-1)
+    # def parse_the_command_line(self):
+    #     try:
+    #         (opts, args) = getopt.getopt(sys.argv[1:], 'H:p:i:m:e:t:s:dhv',
+    #                    ['host=','port=','id=','steps=',
+    #                     'episodes=','track=','stage=',
+    #                     'debug','help','version'])
+    #     except getopt.error as why:
+    #         print('getopt error: %s\n%s' % (why, usage))
+    #         sys.exit(-1)
+    #     try:
+    #         for opt in opts:
+    #             if opt[0] == '-h' or opt[0] == '--help':
+    #                 print(usage)
+    #                 sys.exit(0)
+    #             if opt[0] == '-d' or opt[0] == '--debug':
+    #                 self.debug= True
+    #             if opt[0] == '-H' or opt[0] == '--host':
+    #                 self.host= opt[1]
+    #             if opt[0] == '-i' or opt[0] == '--id':
+    #                 self.sid= opt[1]
+    #             if opt[0] == '-t' or opt[0] == '--track':
+    #                 self.trackname= opt[1]
+    #             if opt[0] == '-s' or opt[0] == '--stage':
+    #                 self.stage= int(opt[1])
+    #             if opt[0] == '-p' or opt[0] == '--port':
+    #                 self.port= int(opt[1])
+    #             if opt[0] == '-e' or opt[0] == '--episodes':
+    #                 self.maxEpisodes= int(opt[1])
+    #             if opt[0] == '-m' or opt[0] == '--steps':
+    #                 self.maxSteps= int(opt[1])
+    #             if opt[0] == '-v' or opt[0] == '--version':
+    #                 print('%s %s' % (sys.argv[0], version))
+    #                 sys.exit(0)
+    #     except ValueError as why:
+    #         print('Bad parameter \'%s\' for option %s: %s\n%s' % (
+    #                                    opt[1], opt[0], why, usage))
+    #         sys.exit(-1)
+    #     if len(args) > 0:
+    #         print('Superflous input? %s\n%s' % (', '.join(args), usage))
+    #         sys.exit(-1)
 
     def get_servers_input(self):
         '''Server's input is stored in a ServerState object'''
@@ -697,14 +697,21 @@ def record_images():
         set_sim_size(640, 480)
         # os.system("ffmpeg -i imgs/%05d.png video.webm")
 
+def load_model():
+    with open("model_def.json", 'r') as f:
+        model = model_from_json(f.read())
+    model.load_weights("weights.h5")
+    return model
+
+
 def agent_model_play():
-    return
     model = load_model()
     set_sim_size(64,64)         # TODO: make this actually full-sized
     C = Client(p=3101)
     while True:
         C.get_servers_input()
-        model.drive(C)
+        img = np.expand_dims(obs_vision_to_image_rgb(C.S.d['img']), axis=0)
+        model.predict(img)
         C.respond_to_server()
 
 # ================ MAIN ================

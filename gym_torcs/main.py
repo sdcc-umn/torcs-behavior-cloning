@@ -142,6 +142,11 @@ def train_model(model, config, X_train, X_validate, y_train, y_validate):
                         nb_val_samples = len(X_validate),
                         callbacks =[checkpoint, tensorboard],
                         verbose = 1)
+    model_json = model.to_json()
+    with open("model_def.json", 'w') as f:
+        f.write(model_json)
+    model.save_weights("weights.h5")
+
 
 
 def s2b(s):
