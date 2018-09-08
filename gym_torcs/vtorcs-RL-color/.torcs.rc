@@ -1,2 +1,2 @@
-TORCS_BASE = /home/ANT.AMAZON.COM/nbbittne/simulator-trials/gym_torcs/vtorcs-RL-color
-MAKE_DEFAULT = /home/ANT.AMAZON.COM/nbbittne/simulator-trials/gym_torcs/vtorcs-RL-color/Make-default.mk
+TORCS_BASE = /home/potato/simulator-trials/gym_torcs/vtorcs-RL-color
+MAKE_DEFAULT = /home/potato/simulator-trials/gym_torcs/vtorcs-RL-color/Make-default.mk

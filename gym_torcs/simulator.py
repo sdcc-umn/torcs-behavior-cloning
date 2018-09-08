@@ -3,6 +3,7 @@ import socket
 import sys
 import os
 import time
+import warnings
 import numpy as np
 from PIL import Image
 from scipy.misc import imread
@@ -39,7 +40,8 @@ def record_images():
                 C.respond_to_server()
             C.shutdown()
             DB.close()
-    except Exception:
+    except Exception as e:
+        warnings.warn(str(e))
         print("Shutting down")
     finally:
         DB.close() if DB else 0
