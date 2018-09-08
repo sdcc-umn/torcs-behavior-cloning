@@ -29,7 +29,7 @@ def load_data(config):
     y = data_df['ctrl'].values
 
     # TODO: what is this 'random state' business?
-    X_train, X_validate, y_train, y_validate = train_test_split(X,y, test_size=config.test_size, random_state =0)
+    X_train, X_validate, y_train, y_validate = train_test_split(X,y, test_size=config.test_size, random_state =0, shuffle=True)
 
     return X_train, X_validate, y_train, y_validate
 
@@ -119,6 +119,10 @@ def build_model(args):
     model.add(Dense(1))
     model.summary()
 
+    if args.weights:
+        print("Loading model weights from %s", args.weights)
+        model.load_weights(args.weights)
+
     return model
 
 
@@ -172,6 +176,7 @@ def main():
     parser.add_argument('-b', help='batch size',            dest='batch_size',        type=int,   default=32)
     parser.add_argument('-o', help='save best models only', dest='save_best_only',    type=s2b,   default='true')
     parser.add_argument('-l', help='learning rate',         dest='learning_rate',     type=float, default=1.0e-4)
+    parser.add_argument('-w', help='saved weights to load',               dest='weights',            type=str,   default='')
     args = parser.parse_args()
 
     print('-' * 30)

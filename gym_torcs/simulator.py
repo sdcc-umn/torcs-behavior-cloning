@@ -24,6 +24,7 @@ data_size = 2**17
 def record_images():
     set_sim_size(64,64)
     C = None
+    DB=None
     try:
         for t in TRACK_LIST:
             set_track(t)
@@ -41,7 +42,7 @@ def record_images():
     except Exception:
         print("Shutting down")
     finally:
-        DB.shutdown()
+        DB.close() if DB else 0
         C.shutdown() if C else 0
         set_sim_size(640, 480)
 
@@ -108,7 +109,7 @@ def drive_example(c):
 
 def drive_model(c, model, img):
     S,R= c.S.d,c.R.d
-    target_speed = 10
+    target_speed = 1
     steering = model.predict(img)[0][0]
     print(steering)
     R['steer'] = steering
