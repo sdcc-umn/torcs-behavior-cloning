@@ -579,6 +579,40 @@ def drive_example(c):
         R['gear']=6
     return
 
+def drive_model(c, model, img):
+    S,R= c.S.d,c.R.d
+    target_speed = 10
+    steering = model.predict(img)[0][0]
+    print(steering)
+    R['steer'] = steering
+
+    # Throttle Control
+    if S['speedX'] < target_speed - (R['steer']*50):
+        R['accel']+= .01
+    else:
+        R['accel']-= .01
+    if S['speedX']<10:
+       R['accel']+= 1/(S['speedX']+.1)
+
+    # Traction Control System
+    if ((S['wheelSpinVel'][2]+S['wheelSpinVel'][3]) -
+       (S['wheelSpinVel'][0]+S['wheelSpinVel'][1]) > 5):
+       R['accel']-= .2
+
+    # Automatic Transmission
+    R['gear']=1
+    if S['speedX']>50:
+        R['gear']=2
+    if S['speedX']>80:
+        R['gear']=3
+    if S['speedX']>110:
+        R['gear']=4
+    if S['speedX']>140:
+        R['gear']=5
+    if S['speedX']>170:
+        R['gear']=6
+    return
+
 
 def obs_vision_to_image_rgb(obs_image_vec):
     image_vec =  obs_image_vec
@@ -712,9 +746,7 @@ def agent_model_play():
     while True:
         C.get_servers_input()
         img = np.expand_dims(obs_vision_to_image_rgb(C.S.d['img']), axis=0)
-        steering = model.predict(img)
-        print(steering)
-        C.R.d['steer'] = steering
+        drive_model(C, model, img)
         C.respond_to_server()
 
 # ================ MAIN ================
