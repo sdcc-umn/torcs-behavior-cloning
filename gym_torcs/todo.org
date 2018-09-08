@@ -1,11 +1,10 @@
-* auto-configure the permissions for user (low)
-- /usr/local/share/games/torcs/config/graph.xml = for camera view
-- /usr/local/share/games/torcs/config/raceman/practice.xml = for track
-- /usr/local/share/games/torcs/config/screen.xml = for screen size.
+* TODO Make it so we can load a model directly from where we left off
 
-* Rename the snakeoil file to something clearer
-* Implement our own RL interface. 
-* Auto-configure the view
+
+* Later
+** Rename the snakeoil file to something clearer
+** Implement our own RL interface. 
+** Auto-configure the view
 
   <section name="Display Mode">
     <section name="Player">
@@ -35,8 +34,8 @@ BECOMES
     </section>
 
   </section>
-* Configure data generation tool
+** Configure data generation tool
 - How many frames? How many tracks?
-* Stream data directly to an online-training model so that we can see it catch-up to expert skill in short time :)
-* maintain the PID of the spawned torcs process so we can kill it.
-* Make up your mind about accel vs throttle
+** Stream data directly to an online-training model so that we can see it catch-up to expert skill in short time :)
+** maintain the PID of the spawned torcs process so we can kill it.
+** Make up your mind about accel vs throttle

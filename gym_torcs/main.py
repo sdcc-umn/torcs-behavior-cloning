@@ -9,7 +9,7 @@ import matplotlib.image as mpimg
 import cv2
 from sklearn.model_selection import train_test_split
 
-from keras.layers import Lambda, Conv2D, MaxPooling2D, Dropout, Dense, Flatten
+from keras.layers import Lambda, Conv2D, MaxPooling2D, Dropout, Dense, Flatten, BatchNormalization
 from sklearn.model_selection import train_test_split
 from keras.models import Sequential
 from keras.optimizers import Adam
@@ -103,16 +103,18 @@ def build_model(args):
     Modified NVIDIA model
     """
     model = Sequential()
-    model.add(Lambda(lambda x: x/127.5-1.0, input_shape=INPUT_SHAPE))
+    model.add(Lambda(lambda x: x, input_shape=INPUT_SHAPE))
+    model.add(BatchNormalization(axis=-1))
     model.add(Conv2D(24, 5, 5, activation='elu', subsample=(2, 2)))
     model.add(Conv2D(36, 5, 5, activation='elu', subsample=(2, 2)))
     model.add(Conv2D(48, 5, 5, activation='elu', subsample=(2, 2)))
     model.add(Conv2D(64, 3, 3, activation='elu'))
     model.add(Conv2D(64, 3, 3, activation='elu'))
-    model.add(Dropout(args.keep_prob))
     model.add(Flatten())
     model.add(Dense(100, activation='elu'))
+    model.add(Dropout(args.keep_prob))
     model.add(Dense(50, activation='elu'))
+    model.add(Dropout(args.keep_prob))
     model.add(Dense(10, activation='elu'))
     model.add(Dense(1))
     model.summary()
@@ -134,18 +136,22 @@ def train_model(model, config, X_train, X_validate, y_train, y_validate):
 
     tensorboard = TensorBoard(log_dir ="./logs/{}".format(time.time()))
 
-    model.fit_generator(batch_generator(X_train, y_train, config.batch_size, True),
-                        config.samples_per_epoch,
-                        config.nb_epoch,
-                        max_q_size=1,  # TODO Wat?
-                        validation_data = batch_generator(X_validate, y_validate, config.batch_size, False),
-                        nb_val_samples = 500,
-                        callbacks =[checkpoint, tensorboard],
-                        verbose = 1)
-    model_json = model.to_json()
-    with open("model_def.json", 'w') as f:
-        f.write(model_json)
-    model.save_weights("weights.h5")
+    try:
+        model.fit_generator(batch_generator(X_train, y_train, config.batch_size, True),
+                            config.samples_per_epoch,
+                            config.nb_epoch,
+                            max_q_size=1,
+                            validation_data = batch_generator(X_validate, y_validate, config.batch_size, False),
+                            nb_val_samples = 500,
+                            callbacks =[checkpoint, tensorboard],
+                            verbose = 1)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        model_json = model.to_json()
+        with open("model_def.json", 'w') as f:
+            f.write(model_json)
+        model.save_weights("weights.h5")
 
 
 

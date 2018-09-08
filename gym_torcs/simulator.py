@@ -1,59 +1,4 @@
-#!/usr/bin/python
-# snakeoil.py
-# Chris X Edwards <snakeoil@xed.ch>
-# Snake Oil is a Python library for interfacing with a TORCS
-# race car simulator which has been patched with the server
-# extentions used in the Simulated Car Racing competitions.
-# http://scr.geccocompetitions.com/
-#
-# To use it, you must import it and create a "drive()" function.
-# This will take care of option handling and server connecting, etc.
-# To see how to write your own client do something like this which is
-# a complete working client:
-# /-----------------------------------------------\
-# |#!/usr/bin/python                              |
-# |import snakeoil                                |
-# |if __name__ == "__main__":                     |
-# |    C= snakeoil.Client()                       |
-# |    for step in xrange(C.maxSteps,0,-1):       |
-# |        C.get_servers_input()                  |
-# |        snakeoil.drive_example(C)              |
-# |        C.respond_to_server()                  |
-# |    C.shutdown()                               |
-# \-----------------------------------------------/
-# This should then be a full featured client. The next step is to
-# replace 'snakeoil.drive_example()' with your own. There is a
-# dictionary which holds various option values (see `default_options`
-# variable for all the details) but you probably only need a few
-# things from it. Mainly the `trackname` and `stage` are important
-# when developing a strategic bot.
-#
-# This dictionary also contains a ServerState object
-# (key=S) and a DriverAction object (key=R for response). This allows
-# you to get at all the information sent by the server and to easily
-# formulate your reply. These objects contain a member dictionary "d"
-# (for data dictionary) which contain key value pairs based on the
-# server's syntax. Therefore, you can read the following:
-#    angle, curLapTime, damage, distFromStart, distRaced, focus,
-#    fuel, gear, lastLapTime, opponents, racePos, rpm,
-#    speedX, speedY, speedZ, track, trackPos, wheelSpinVel, z
-# The syntax specifically would be something like:
-#    X= o[S.d['tracPos']]
-# And you can set the following:
-#    accel, brake, clutch, gear, steer, focus, meta
-# The syntax is:
-#     o[R.d['steer']]= X
-# Note that it is 'steer' and not 'steering' as described in the manual!
-# All values should be sensible for their type, including lists being lists.
-# See the SCR manual or http://xed.ch/help/torcs.html for details.
-#
-# If you just run the snakeoil.py base library itself it will implement a
-# serviceable client with a demonstration drive function that is
-# sufficient for getting around most tracks.
-# Try `snakeoil.py --help` to get started.
-
-# for Python3-based torcs python robot client
-import re
+#!/usr/bin/env python
 import socket
 import sys
 import os
@@ -65,69 +10,149 @@ import h5py
 import argparse
 from tqdm import tqdm
 from keras.models import model_from_json
+from util import *
+from sim_commands import set_sim_size, set_track, obs_vision_to_image_rgb
 
+TRACK_LIST = ["e-track-4"] #, "g-track-3"]
+
+PER_TRACK_FRAME_LIMIT = 50000    # that's a lot; use for single-track
+DB_DIRS = os.path.join(os.path.dirname(os.path.abspath("__FILE__")), "databases")
 PI= 3.14159265359
 FRAME_NO = 0
-
 data_size = 2**17
 
-TRACK_DIR = "/usr/local/share/games/torcs/tracks"
-PATH_TO_CONFIG_DIR = "/usr/local/share/games/torcs/config"
-TRACK_SELECT_FILE = os.path.join(PATH_TO_CONFIG_DIR, "raceman/practice.xml")
-SCREEN_FILE = os.path.join(PATH_TO_CONFIG_DIR, "screen.xml")
+def record_images():
+    set_sim_size(64,64)
+    C = None
+    try:
+        for t in TRACK_LIST:
+            set_track(t)
+            DB = DataBase(t)
+            C= Client(p=3101)
+            for step in tqdm(range(PER_TRACK_FRAME_LIMIT)):
+                C.get_servers_input()
+                drive_example(C)
+                img = obs_vision_to_image_rgb(C.S.d['img'])
+                ctrl = C.R.d
+                DB.write(img, ctrl, step)
+                C.respond_to_server()
+            C.shutdown()
+            DB.close()
+    except Exception:
+        print("Shutting down")
+    finally:
+        DB.shutdown()
+        C.shutdown() if C else 0
+        set_sim_size(640, 480)
 
-# Initialize help messages
-ophelp=  'Options:\n'
-ophelp+= ' --host, -H <host>    TORCS server host. [localhost]\n'
-ophelp+= ' --port, -p <port>    TORCS port. [3001]\n'
-ophelp+= ' --id, -i <id>        ID for server. [SCR]\n'
-ophelp+= ' --steps, -m <#>      Maximum simulation steps. 1 sec ~ 50 steps. [100000]\n'
-ophelp+= ' --episodes, -e <#>   Maximum learning episodes. [1]\n'
-ophelp+= ' --track, -t <track>  Your name for this track. Used for learning. [unknown]\n'
-ophelp+= ' --stage, -s <#>      0=warm up, 1=qualifying, 2=race, 3=unknown. [3]\n'
-ophelp+= ' --debug, -d          Output full telemetry.\n'
-ophelp+= ' --help, -h           Show this help.\n'
-ophelp+= ' --version, -v        Show current version.'
-usage= 'Usage: %s [ophelp [optargs]] \n' % sys.argv[0]
-usage= usage + ophelp
-version= "20130505-2"
+def load_model():
+    with open("model_def.json", 'r') as f:
+        model = model_from_json(f.read())
+    model.load_weights("weights.h5")
+    return model
 
-def clip(v,lo,hi):
-    if v<lo: return lo
-    elif v>hi: return hi
-    else: return v
+def agent_model_play():
+    model = load_model()
+    set_sim_size(64,64)         # TODO: make this actually full-sized
+    set_track(TRACK_LIST[0])
+    C = Client(p=3101)
+    try:
+        while True:
+            C.get_servers_input()
+            img = np.expand_dims(obs_vision_to_image_rgb(C.S.d['img']), axis=0)
+            drive_model(C, model, img)
+            C.respond_to_server()
+    except KeyboardInterrupt:
+        print("Interrupt -- shutting down")
+    finally:
+        C.shutdown() if C else 0
+        set_sim_size(640, 480)
 
-def bargraph(x,mn,mx,w,c='X'):
-    '''Draws a simple asciiart bar graph. Very handy for
-    visualizing what's going on with the data.
-    x= Value from sensor, mn= minimum plottable value,
-    mx= maximum plottable value, w= width of plot in chars,
-    c= the character to plot with.'''
-    if not w: return '' # No width!
-    if x<mn: x= mn      # Clip to bounds.
-    if x>mx: x= mx      # Clip to bounds.
-    tx= mx-mn # Total real units possible to show on graph.
-    if tx<=0: return 'backwards' # Stupid bounds.
-    upw= tx/float(w) # X Units per output char width.
-    if upw<=0: return 'what?' # Don't let this happen.
-    negpu, pospu, negnonpu, posnonpu= 0,0,0,0
-    if mn < 0: # Then there is a negative part to graph.
-        if x < 0: # And the plot is on the negative side.
-            negpu= -x + min(0,mx)
-            negnonpu= -mn + x
-        else: # Plot is on pos. Neg side is empty.
-            negnonpu= -mn + min(0,mx) # But still show some empty neg.
-    if mx > 0: # There is a positive part to the graph
-        if x > 0: # And the plot is on the positive side.
-            pospu= x - max(0,mn)
-            posnonpu= mx - x
-        else: # Plot is on neg. Pos side is empty.
-            posnonpu= mx - max(0,mn) # But still show some empty pos.
-    nnc= int(negnonpu/upw)*'-'
-    npc= int(negpu/upw)*c
-    ppc= int(pospu/upw)*c
-    pnc= int(posnonpu/upw)*'_'
-    return '[%s]' % (nnc+npc+ppc+pnc)
+def drive_example(c):
+    '''This is only an example. It will get around the track but the
+    correct thing to do is write your own `drive()` function.'''
+    S,R= c.S.d,c.R.d
+    target_speed=100
+
+    # Steer To Corner
+    R['steer']= S['angle']*10 / PI
+    # Steer To Center
+    R['steer']-= S['trackPos']*.10
+
+    # Throttle Control
+    if S['speedX'] < target_speed - (R['steer']*50):
+        R['accel']+= .01
+    else:
+        R['accel']-= .01
+    if S['speedX']<10:
+       R['accel']+= 1/(S['speedX']+.1)
+
+    # Traction Control System
+    if ((S['wheelSpinVel'][2]+S['wheelSpinVel'][3]) -
+       (S['wheelSpinVel'][0]+S['wheelSpinVel'][1]) > 5):
+       R['accel']-= .2
+
+    # Automatic Transmission
+    R['gear']=1
+    if S['speedX']>50:
+        R['gear']=2
+    if S['speedX']>80:
+        R['gear']=3
+    if S['speedX']>110:
+        R['gear']=4
+    if S['speedX']>140:
+        R['gear']=5
+    if S['speedX']>170:
+        R['gear']=6
+    return
+
+def drive_model(c, model, img):
+    S,R= c.S.d,c.R.d
+    target_speed = 10
+    steering = model.predict(img)[0][0]
+    print(steering)
+    R['steer'] = steering
+
+    # Throttle Control
+    if S['speedX'] < target_speed - (R['steer']*50):
+        R['accel']+= .01
+    else:
+        R['accel']-= .01
+    if S['speedX']<10:
+       R['accel']+= 1/(S['speedX']+.1)
+
+    # Traction Control System
+    if ((S['wheelSpinVel'][2]+S['wheelSpinVel'][3]) -
+       (S['wheelSpinVel'][0]+S['wheelSpinVel'][1]) > 5):
+       R['accel']-= .2
+
+    # Automatic Transmission
+    R['gear']=1
+    if S['speedX']>50:
+        R['gear']=2
+    if S['speedX']>80:
+        R['gear']=3
+    if S['speedX']>110:
+        R['gear']=4
+    if S['speedX']>140:
+        R['gear']=5
+    if S['speedX']>170:
+        R['gear']=6
+    return
+
+def obs_vision_to_image_rgb(obs_image_vec):
+    image_vec =  obs_image_vec
+    w = 64
+    h = 64
+    nc = 3
+    image_vec = np.flipud(np.array(image_vec).astype(np.uint8).reshape([w, h, 3]))
+    return image_vec
+
+def get_parser():
+    arg_parser = argparse.ArgumentParser(description="Specify if you want to record images or run the model")
+    arg_parser.add_argument("--play", dest='action', action='store_const', const=agent_model_play, default=record_images, help = 'have the agent play')
+    return arg_parser
+
 
 class Client():
     def __init__(self,H=None,p=None,i=None,e=None,t=None,s=None,d=None,vision=True):
@@ -201,47 +226,6 @@ class Client():
                 print("Client connected on %d.............." % self.port)
                 break
 
-    # def parse_the_command_line(self):
-    #     try:
-    #         (opts, args) = getopt.getopt(sys.argv[1:], 'H:p:i:m:e:t:s:dhv',
-    #                    ['host=','port=','id=','steps=',
-    #                     'episodes=','track=','stage=',
-    #                     'debug','help','version'])
-    #     except getopt.error as why:
-    #         print('getopt error: %s\n%s' % (why, usage))
-    #         sys.exit(-1)
-    #     try:
-    #         for opt in opts:
-    #             if opt[0] == '-h' or opt[0] == '--help':
-    #                 print(usage)
-    #                 sys.exit(0)
-    #             if opt[0] == '-d' or opt[0] == '--debug':
-    #                 self.debug= True
-    #             if opt[0] == '-H' or opt[0] == '--host':
-    #                 self.host= opt[1]
-    #             if opt[0] == '-i' or opt[0] == '--id':
-    #                 self.sid= opt[1]
-    #             if opt[0] == '-t' or opt[0] == '--track':
-    #                 self.trackname= opt[1]
-    #             if opt[0] == '-s' or opt[0] == '--stage':
-    #                 self.stage= int(opt[1])
-    #             if opt[0] == '-p' or opt[0] == '--port':
-    #                 self.port= int(opt[1])
-    #             if opt[0] == '-e' or opt[0] == '--episodes':
-    #                 self.maxEpisodes= int(opt[1])
-    #             if opt[0] == '-m' or opt[0] == '--steps':
-    #                 self.maxSteps= int(opt[1])
-    #             if opt[0] == '-v' or opt[0] == '--version':
-    #                 print('%s %s' % (sys.argv[0], version))
-    #                 sys.exit(0)
-    #     except ValueError as why:
-    #         print('Bad parameter \'%s\' for option %s: %s\n%s' % (
-    #                                    opt[1], opt[0], why, usage))
-    #         sys.exit(-1)
-    #     if len(args) > 0:
-    #         print('Superflous input? %s\n%s' % (', '.join(args), usage))
-    #         sys.exit(-1)
-
     def get_servers_input(self):
         '''Server's input is stored in a ServerState object'''
         if not self.so: return
@@ -298,8 +282,6 @@ class Client():
         self.so.close()
         self.so = None
         os.system("pkill -f torcs")
-        #sys.exit() # No need for this really.
-
 class ServerState():
     '''What the server is reporting right now.'''
     def __init__(self):
@@ -522,127 +504,6 @@ class DriverAction():
             out+= "%s: %s\n" % (k,strout)
         return out
 
-# == Misc Utility Functions
-def destringify(s):
-    '''makes a string into a value or a list of strings into a list of
-    values (if possible)'''
-    if not s: return s
-    if type(s) is str:
-        try:
-            return float(s)
-        except ValueError:
-            print("Could not find a value in %s" % s)
-            return s
-    elif type(s) is list:
-        if len(s) < 2:
-            return destringify(s[0])
-        else:
-            return [destringify(i) for i in s]
-
-def drive_example(c):
-    '''This is only an example. It will get around the track but the
-    correct thing to do is write your own `drive()` function.'''
-    S,R= c.S.d,c.R.d
-    target_speed=100
-
-    # Steer To Corner
-    R['steer']= S['angle']*10 / PI
-    # Steer To Center
-    R['steer']-= S['trackPos']*.10
-
-    # Throttle Control
-    if S['speedX'] < target_speed - (R['steer']*50):
-        R['accel']+= .01
-    else:
-        R['accel']-= .01
-    if S['speedX']<10:
-       R['accel']+= 1/(S['speedX']+.1)
-
-    # Traction Control System
-    if ((S['wheelSpinVel'][2]+S['wheelSpinVel'][3]) -
-       (S['wheelSpinVel'][0]+S['wheelSpinVel'][1]) > 5):
-       R['accel']-= .2
-
-    # Automatic Transmission
-    R['gear']=1
-    if S['speedX']>50:
-        R['gear']=2
-    if S['speedX']>80:
-        R['gear']=3
-    if S['speedX']>110:
-        R['gear']=4
-    if S['speedX']>140:
-        R['gear']=5
-    if S['speedX']>170:
-        R['gear']=6
-    return
-
-def drive_model(c, model, img):
-    S,R= c.S.d,c.R.d
-    target_speed = 10
-    steering = model.predict(img)[0][0]
-    print(steering)
-    R['steer'] = steering
-
-    # Throttle Control
-    if S['speedX'] < target_speed - (R['steer']*50):
-        R['accel']+= .01
-    else:
-        R['accel']-= .01
-    if S['speedX']<10:
-       R['accel']+= 1/(S['speedX']+.1)
-
-    # Traction Control System
-    if ((S['wheelSpinVel'][2]+S['wheelSpinVel'][3]) -
-       (S['wheelSpinVel'][0]+S['wheelSpinVel'][1]) > 5):
-       R['accel']-= .2
-
-    # Automatic Transmission
-    R['gear']=1
-    if S['speedX']>50:
-        R['gear']=2
-    if S['speedX']>80:
-        R['gear']=3
-    if S['speedX']>110:
-        R['gear']=4
-    if S['speedX']>140:
-        R['gear']=5
-    if S['speedX']>170:
-        R['gear']=6
-    return
-
-
-def obs_vision_to_image_rgb(obs_image_vec):
-    image_vec =  obs_image_vec
-    w = 64
-    h = 64
-    nc = 3
-    image_vec = np.flipud(np.array(image_vec).astype(np.uint8).reshape([w, h, 3]))
-    return image_vec
-
-def set_sim_size(x,y):
-    with open(SCREEN_FILE, 'r') as f:
-        text = f.read()
-    text = re.sub(r'<attnum name="x" val="\d+"\/>', '<attnum name="x" val="%s"/>'%x, text)
-    text = re.sub(r'<attnum name="y" val="\d+"\/>', '<attnum name="y" val="%s"/>'%y, text)
-    text = re.sub(r'<attnum name="window width" val="\d+"\/>','<attnum name="window width" val="%s"/>'%x, text)
-    text = re.sub(r'<attnum name="window height" val="\d+"\/>','<attnum name="window height" val="%s"/>'%y, text)
-    with open(SCREEN_FILE, 'w') as f:
-        f.write(text)
-
-
-def set_track(t):
-    with open(TRACK_SELECT_FILE, 'r') as f:
-        text = f.read()
-    text = re.sub(r"""<attstr name="name" val=".+"/>
-      <attstr name="category" val=".+"/>""", r"""<attstr name="name" val="%s"/>
-      <attstr name="category" val="road"/>"""%t, text)
-
-    with open(TRACK_SELECT_FILE, 'w') as f:
-        f.write(text)
-
-
-DB_DIRS = os.path.join(os.path.dirname(os.path.abspath("__FILE__")), "databases")
 class DataBase(object):
     def __init__(self, trackname):
         """ should take in a track name and create a database for it"""
@@ -702,55 +563,7 @@ class DataBase(object):
             hdf5_file["steer"][i,...] = float(steer)
 
 
-TRACK_LIST = ["e-track-4"] #, "g-track-3"]
-PER_TRACK_FRAME_LIMIT = 50000    # that's a lot; use for single-track
-def record_images():
-    set_sim_size(64,64)
-    C = None
-    try:
-        for t in TRACK_LIST:
-            set_track(t)
-            DB = DataBase(t)
-            C= Client(p=3101)
-            for step in tqdm(range(PER_TRACK_FRAME_LIMIT)):
-                C.get_servers_input()
-                drive_example(C)
-                img = obs_vision_to_image_rgb(C.S.d['img'])
-                ctrl = C.R.d
-                DB.write(img, ctrl, step)
-                C.respond_to_server()
-            C.shutdown()
-            DB.close()
-            # DB.compile()
-    except KeyboardInterrupt:
-        print("Shutting down")
-    finally:
-        C.shutdown if C else 0
-        set_sim_size(640, 480)
-        # os.system("ffmpeg -i imgs/%05d.png video.webm")
-
-def load_model():
-    with open("model_def.json", 'r') as f:
-        model = model_from_json(f.read())
-    model.load_weights("weights.h5")
-    return model
-
-
-def agent_model_play():
-    model = load_model()
-    set_sim_size(64,64)         # TODO: make this actually full-sized
-    set_track(TRACK_LIST[0])
-    C = Client(p=3101)
-    while True:
-        C.get_servers_input()
-        img = np.expand_dims(obs_vision_to_image_rgb(C.S.d['img']), axis=0)
-        drive_model(C, model, img)
-        C.respond_to_server()
-
-# ================ MAIN ================
-
 if __name__ == "__main__":
-    arg_parser = argparse.ArgumentParser(description="Specify if you want to record images or run the model")
-    arg_parser.add_argument("--play", dest='action', action='store_const', const=agent_model_play, default=record_images, help = 'have the agent play')
+    arg_parser = get_parser()
     args=arg_parser.parse_args()
     args.action()
