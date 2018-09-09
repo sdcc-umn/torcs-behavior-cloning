@@ -1,4 +1,11 @@
-* TODO Make it so we can load a model directly from where we left off
+* DONE Make it so we can load a model directly from where we left off
+  CLOSED: [2018-09-09 Sun 16:54]
+* TODO Visualization tool for augmented data
+* TODO Visualization tool for seeing the model's prediction on an image
+* TODO Sacred added so we can keep track of each experiment's variations.
+* TODO combine all data from the database into a single dataset.
+* TODO Email notifications when an experiment run finishes
+* TODO early termination for when VAL loss stagnates/gets worse.
 
 
 * Later
