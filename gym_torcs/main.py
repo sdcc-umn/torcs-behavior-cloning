@@ -98,6 +98,7 @@ def batch_generator(image_paths, control_data, batch_size, is_training):
 
         yield images, ctrls
 
+
 def build_model(args):
     """
     Modified NVIDIA model
@@ -120,7 +121,7 @@ def build_model(args):
     model.summary()
 
     if args.weights:
-        print("Loading model weights from %s", args.weights)
+        print("Loading model weights from %s" % args.weights)
         model.load_weights(args.weights)
 
     return model
@@ -136,6 +137,7 @@ def train_model(model, config, X_train, X_validate, y_train, y_validate):
                                  verbose=0,
                                  save_best_only=config.save_best_only,
                                  mode = 'auto')
+
     model.compile(loss='mean_squared_error', optimizer=kr.optimizers.Adam(lr=config.learning_rate))
 
     tensorboard = TensorBoard(log_dir ="./logs/{}".format(time.time()))
