@@ -1,5 +1,17 @@
+import os
 
-
+def combine_dbs(root):
+    """ Walk through a directory tree and combine all 'db.csv' files into one."""
+    assert os.path.exists(root)
+    master = []
+    for root, dirs, files in os.walk(root):
+        for f in files:
+            if f=="db.csv":
+                with open(os.path.join(root, f), 'r') as fd:
+                    text = fd.readlines()
+                    master += text[1:]
+    with open("./master.csv", 'w') as f:
+        f.writelines(master)
 
 def destringify(s):
     '''makes a string into a value or a list of strings into a list of

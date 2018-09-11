@@ -16,7 +16,7 @@ from sim_commands import set_sim_size, set_track, obs_vision_to_image_rgb
 
 TRACK_LIST = ["e-track-4"] #, "g-track-3"]
 
-PER_TRACK_FRAME_LIMIT = 50000    # that's a lot; use for single-track
+PER_TRACK_FRAME_LIMIT = 1000000    # that's a lot; use for single-track
 DB_DIRS = os.path.join(os.path.dirname(os.path.abspath("__FILE__")), "databases")
 PI= 3.14159265359
 FRAME_NO = 0
@@ -55,15 +55,22 @@ def load_model():
     return model
 
 def agent_model_play():
+    if not os.path.exists("play_imgs/"):
+        os.mkdir("play_imgs")
     model = load_model()
     set_sim_size(64,64)         # TODO: make this actually full-sized
     set_track(TRACK_LIST[0])
     C = Client(p=3101)
     try:
+        step =0
         while True:
+            step+=1
             C.get_servers_input()
-            img = np.expand_dims(obs_vision_to_image_rgb(C.S.d['img']), axis=0)
-            drive_model(C, model, img)
+            img = obs_vision_to_image_rgb(C.S.d['img'])
+            img_path = os.path.join("play_imgs/%05d.jpeg" % step)
+            im = Image.fromarray(img)
+            im.save(img_path)
+            drive_model(C, model, np.expand_dims(img, axis=0))
             C.respond_to_server()
     except KeyboardInterrupt:
         print("Interrupt -- shutting down")
@@ -111,7 +118,7 @@ def drive_example(c):
 
 def drive_model(c, model, img):
     S,R= c.S.d,c.R.d
-    target_speed = 1
+    target_speed = 100
     steering = model.predict(img)[0][0]
     print(steering)
     R['steer'] = steering

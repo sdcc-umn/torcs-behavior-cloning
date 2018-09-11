@@ -14,6 +14,7 @@ from sklearn.model_selection import train_test_split
 from keras.models import Sequential
 from keras.optimizers import Adam
 from keras.callbacks import ModelCheckpoint, TensorBoard
+from PIL import Image
 
 
 np.random.seed(0)
@@ -31,6 +32,10 @@ def load_data(config):
     # TODO: what is this 'random state' business?
     X_train, X_validate, y_train, y_validate = train_test_split(X,y, test_size=config.test_size, random_state =0, shuffle=True)
 
+    print('-' * 30)
+    print("Len Train:", len(X_train))
+    print("Len Val:", len(X_validate))
+    print('-' * 30)
     return X_train, X_validate, y_train, y_validate
 
 def random_flip(image, ctrl):
@@ -61,8 +66,9 @@ def preprocess(image):
     """
     Combine all preprocess functions into one
     """
-    image = rgb2yuv(image)
     return image
+    # image = rgb2yuv(image)
+    # return image
 
 def rgb2yuv(image):
     """
@@ -86,11 +92,10 @@ def batch_generator(image_paths, control_data, batch_size, is_training):
             ctrl = control_data[index]
 
             # TODO: make augment rate a parameter in config
-            if is_training and np.random.rand()<0.6:
+            if is_training:
                 image, ctrl = augment(image, ctrl)
-            else:
-                images[i] = preprocess(image)
-                ctrls[i] = ctrl
+            images[i] = preprocess(image)
+            ctrls[i] = ctrl
 
             i+=1
             if i == batch_size:
@@ -104,20 +109,35 @@ def build_model(args):
     Modified NVIDIA model
     """
     model = Sequential()
-    model.add(Lambda(lambda x: x, input_shape=INPUT_SHAPE))
+    model.add(Conv2D(24, 5, 5, activation='relu', subsample=(2, 2), input_shape=INPUT_SHAPE))
     model.add(BatchNormalization(axis=-1))
-    model.add(Conv2D(24, 5, 5, activation='elu', subsample=(2, 2)))
-    model.add(Conv2D(36, 5, 5, activation='elu', subsample=(2, 2)))
-    model.add(Conv2D(48, 5, 5, activation='elu', subsample=(2, 2)))
-    model.add(Conv2D(64, 3, 3, activation='elu'))
-    model.add(Conv2D(64, 3, 3, activation='elu'))
+    model.add(Conv2D(36, 5, 5, activation='relu', subsample=(2, 2)))
+    model.add(BatchNormalization(axis=-1))
+    model.add(Conv2D(48, 5, 5, activation='relu', subsample=(2, 2)))
+    model.add(BatchNormalization(axis=-1))
+    model.add(Conv2D(64, 3, 3, activation='relu'))
+    model.add(BatchNormalization(axis=-1))
+    model.add(Conv2D(64, 3, 3, activation='relu'))
+
     model.add(Flatten())
-    model.add(Dense(100, activation='elu'))
+
+    model.add(BatchNormalization(axis=-1))
+    model.add(Dense(1000, activation='relu'))
+
     model.add(Dropout(args.keep_prob))
-    model.add(Dense(50, activation='elu'))
+    model.add(BatchNormalization(axis=-1))
+    model.add(Dense(100, activation='relu'))
+
     model.add(Dropout(args.keep_prob))
-    model.add(Dense(10, activation='elu'))
-    model.add(Dense(1))
+    model.add(BatchNormalization(axis=-1))
+    model.add(Dense(50, activation='relu'))
+
+    model.add(Dropout(args.keep_prob))
+    model.add(BatchNormalization(axis=-1))
+    model.add(Dense(10, activation='relu'))
+    model.add(BatchNormalization(axis=-1))
+
+    model.add(Dense(1, activation='tanh'))
     model.summary()
 
     if args.weights:
@@ -171,14 +191,15 @@ def s2b(s):
 def main():
     parser = argparse.ArgumentParser(description = "SDCC Behavioral Cloning on TORCS")
     parser.add_argument('-d', help='data directory',        dest='data_dir',          type=str,   default='data')
-    parser.add_argument('-t', help='test size fraction',    dest='test_size',         type=float, default=0.2)
+    parser.add_argument('-t', help='test size fraction',    dest='test_size',         type=float, default=0.05)
     parser.add_argument('-k', help='drop out probability',  dest='keep_prob',         type=float, default=0.5)
-    parser.add_argument('-n', help='number of epochs',      dest='nb_epoch',          type=int,   default=100)
+    parser.add_argument('-n', help='number of epochs',      dest='nb_epoch',          type=int,   default=1000)
     parser.add_argument('-s', help='samples per epoch',     dest='samples_per_epoch', type=int,   default=5000)
-    parser.add_argument('-b', help='batch size',            dest='batch_size',        type=int,   default=32)
+    parser.add_argument('-b', help='batch size',            dest='batch_size',        type=int,   default=64)
     parser.add_argument('-o', help='save best models only', dest='save_best_only',    type=s2b,   default='true')
     parser.add_argument('-l', help='learning rate',         dest='learning_rate',     type=float, default=1.0e-4)
     parser.add_argument('-w', help='saved weights to load',               dest='weights',            type=str,   default='')
+    parser.add_argument('-v', help='visualize training samples', dest='visualize', action='store_true')
     args = parser.parse_args()
 
     print('-' * 30)
@@ -189,8 +210,15 @@ def main():
     print('-' * 30)
 
     data = load_data(args)
-    model = build_model(args)
-    train_model(model, args, *data)
+
+    if args.visualize:
+        batch = next(batch_generator(data[0], data[2], args.batch_size, True))
+        for i in range(10):
+            img = Image.fromarray(np.uint8(batch[0][i]))
+            img.show()
+    else:
+        model = build_model(args)
+        train_model(model, args, *data)
 
 if __name__ == "__main__":
     main()
