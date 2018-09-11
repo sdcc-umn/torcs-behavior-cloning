@@ -109,35 +109,35 @@ def build_model(args):
     Modified NVIDIA model
     """
     model = Sequential()
-    model.add(Conv2D(24, 5, 5, activation='relu', subsample=(2, 2), input_shape=INPUT_SHAPE))
+    model.add(Conv2D(24, 5, 5, activation='elu', subsample=(2, 2), input_shape=INPUT_SHAPE))
     model.add(BatchNormalization(axis=-1))
-    model.add(Conv2D(36, 5, 5, activation='relu', subsample=(2, 2)))
+    model.add(Conv2D(36, 5, 5, activation='elu', subsample=(2, 2)))
     model.add(BatchNormalization(axis=-1))
-    model.add(Conv2D(48, 5, 5, activation='relu', subsample=(2, 2)))
+    model.add(Conv2D(48, 5, 5, activation='elu', subsample=(2, 2)))
     model.add(BatchNormalization(axis=-1))
-    model.add(Conv2D(64, 3, 3, activation='relu'))
+    model.add(Conv2D(64, 3, 3, activation='elu'))
     model.add(BatchNormalization(axis=-1))
-    model.add(Conv2D(64, 3, 3, activation='relu'))
+    model.add(Conv2D(64, 3, 3, activation='elu'))
+    model.add(BatchNormalization(axis=-1))
 
     model.add(Flatten())
 
+    model.add(Dense(1000, activation='elu'))
     model.add(BatchNormalization(axis=-1))
-    model.add(Dense(1000, activation='relu'))
 
     model.add(Dropout(args.keep_prob))
+    model.add(Dense(100, activation='elu'))
     model.add(BatchNormalization(axis=-1))
-    model.add(Dense(100, activation='relu'))
 
     model.add(Dropout(args.keep_prob))
+    model.add(Dense(50, activation='elu'))
     model.add(BatchNormalization(axis=-1))
-    model.add(Dense(50, activation='relu'))
 
     model.add(Dropout(args.keep_prob))
-    model.add(BatchNormalization(axis=-1))
-    model.add(Dense(10, activation='relu'))
+    model.add(Dense(10, activation='elu'))
     model.add(BatchNormalization(axis=-1))
 
-    model.add(Dense(1, activation='tanh'))
+    model.add(Dense(1))
     model.summary()
 
     if args.weights:
@@ -193,8 +193,8 @@ def main():
     parser.add_argument('-d', help='data directory',        dest='data_dir',          type=str,   default='data')
     parser.add_argument('-t', help='test size fraction',    dest='test_size',         type=float, default=0.05)
     parser.add_argument('-k', help='drop out probability',  dest='keep_prob',         type=float, default=0.5)
-    parser.add_argument('-n', help='number of epochs',      dest='nb_epoch',          type=int,   default=1000)
-    parser.add_argument('-s', help='samples per epoch',     dest='samples_per_epoch', type=int,   default=5000)
+    parser.add_argument('-n', help='number of epochs',      dest='nb_epoch',          type=int,   default=100)
+    parser.add_argument('-s', help='samples per epoch',     dest='samples_per_epoch', type=int,   default=500)
     parser.add_argument('-b', help='batch size',            dest='batch_size',        type=int,   default=64)
     parser.add_argument('-o', help='save best models only', dest='save_best_only',    type=s2b,   default='true')
     parser.add_argument('-l', help='learning rate',         dest='learning_rate',     type=float, default=1.0e-4)
