@@ -15,6 +15,7 @@ from keras.models import Sequential
 from keras.optimizers import Adam
 from keras.callbacks import ModelCheckpoint, TensorBoard
 from PIL import Image
+from tensorflow.losses import huber_loss
 
 
 np.random.seed(0)
@@ -26,6 +27,11 @@ def load_image(image_path):
 
 def load_data(config):
     data_df = pd.read_csv(os.path.join(config.data_dir, 'db.csv'))  # TODO: do rename this to 'driving log' or something else more informative than 'db'
+
+    data_df = data_df[abs(data_df.ctrl)<2]
+    # data_df = data_df[abs(data_df.ctrl)>0.01]
+    data_df.ctrl[abs(data_df.ctrl)>1] = 1.0
+
     X = data_df['image'].values
     y = data_df['ctrl'].values
 
@@ -109,32 +115,32 @@ def build_model(args):
     Modified NVIDIA model
     """
     model = Sequential()
-    model.add(Conv2D(24, 5, 5, activation='elu', subsample=(2, 2), input_shape=INPUT_SHAPE))
+    model.add(Conv2D(24, 5, 5, activation='relu', subsample=(2, 2), input_shape=INPUT_SHAPE))
     model.add(BatchNormalization(axis=-1))
-    model.add(Conv2D(36, 5, 5, activation='elu', subsample=(2, 2)))
+    model.add(Conv2D(36, 5, 5, activation='relu', subsample=(2, 2)))
     model.add(BatchNormalization(axis=-1))
-    model.add(Conv2D(48, 5, 5, activation='elu', subsample=(2, 2)))
+    model.add(Conv2D(48, 5, 5, activation='relu', subsample=(2, 2)))
     model.add(BatchNormalization(axis=-1))
-    model.add(Conv2D(64, 3, 3, activation='elu'))
+    model.add(Conv2D(64, 3, 3, activation='relu'))
     model.add(BatchNormalization(axis=-1))
-    model.add(Conv2D(64, 3, 3, activation='elu'))
+    model.add(Conv2D(64, 3, 3, activation='relu'))
     model.add(BatchNormalization(axis=-1))
 
     model.add(Flatten())
 
-    model.add(Dense(1000, activation='elu'))
+    model.add(Dense(1000, activation='relu'))
     model.add(BatchNormalization(axis=-1))
 
     model.add(Dropout(args.keep_prob))
-    model.add(Dense(100, activation='elu'))
+    model.add(Dense(100, activation='relu'))
     model.add(BatchNormalization(axis=-1))
 
     model.add(Dropout(args.keep_prob))
-    model.add(Dense(50, activation='elu'))
+    model.add(Dense(50, activation='relu'))
     model.add(BatchNormalization(axis=-1))
 
     model.add(Dropout(args.keep_prob))
-    model.add(Dense(10, activation='elu'))
+    model.add(Dense(10, activation='relu'))
     model.add(BatchNormalization(axis=-1))
 
     model.add(Dense(1))
@@ -145,7 +151,6 @@ def build_model(args):
         model.load_weights(args.weights)
 
     return model
-
 
 def train_model(model, config, X_train, X_validate, y_train, y_validate):
     """
@@ -164,11 +169,11 @@ def train_model(model, config, X_train, X_validate, y_train, y_validate):
 
     try:
         model.fit_generator(batch_generator(X_train, y_train, config.batch_size, True),
-                            config.samples_per_epoch,
-                            config.nb_epoch,
+                            steps_per_epoch=config.samples_per_epoch,
+                            epochs=config.nb_epoch,
                             max_q_size=1,
                             validation_data = batch_generator(X_validate, y_validate, config.batch_size, False),
-                            nb_val_samples = 500,
+                            nb_val_samples = 700,
                             callbacks =[checkpoint, tensorboard],
                             verbose = 1)
     except KeyboardInterrupt:
@@ -191,7 +196,7 @@ def s2b(s):
 def main():
     parser = argparse.ArgumentParser(description = "SDCC Behavioral Cloning on TORCS")
     parser.add_argument('-d', help='data directory',        dest='data_dir',          type=str,   default='data')
-    parser.add_argument('-t', help='test size fraction',    dest='test_size',         type=float, default=0.05)
+    parser.add_argument('-t', help='test size fraction',    dest='test_size',         type=float, default=0.1)
     parser.add_argument('-k', help='drop out probability',  dest='keep_prob',         type=float, default=0.5)
     parser.add_argument('-n', help='number of epochs',      dest='nb_epoch',          type=int,   default=100)
     parser.add_argument('-s', help='samples per epoch',     dest='samples_per_epoch', type=int,   default=500)
