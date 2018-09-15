@@ -1,4 +1,6 @@
 import os
+import time
+import smtplib
 
 def combine_dbs(root):
     """ Walk through a directory tree and combine all 'db.csv' files into one."""
@@ -67,3 +69,28 @@ def bargraph(x,mn,mx,w,c='X'):
     ppc= int(pospu/upw)*c
     pnc= int(posnonpu/upw)*'_'
     return '[%s]' % (nnc+npc+ppc+pnc)
+
+def get_secret(sfile='./.secret'):
+    with open(sfile,'r') as f:
+        secret = f.read()
+    return secret
+
+def email_when_finished(func):
+    def wrapped_func(*args, **kwargs):
+        tic = time.time()
+        error = None
+        try:
+            func(*args, **kwargs)
+        except Exception as e:
+            error = e
+        toc = time.time()
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        secret = get_secret()
+        server.login("sdcc@umn.edu", secret)
+        msg = "Training finished. Took %s" % str(toc-tic)
+        server.sendmail("sdcc@umn.edu", "bittn037@umn.edu", msg)
+        server.quit()
+
+
+    return wrapped_func

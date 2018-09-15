@@ -16,6 +16,10 @@ from keras.optimizers import Adam
 from keras.callbacks import ModelCheckpoint, TensorBoard
 from PIL import Image
 from tensorflow.losses import huber_loss
+from keras import regularizers
+from util import email_when_finished
+import matplotlib.pyplot as plt
+import random
 
 
 np.random.seed(0)
@@ -28,9 +32,18 @@ def load_image(image_path):
 def load_data(config):
     data_df = pd.read_csv(os.path.join(config.data_dir, 'db.csv'))  # TODO: do rename this to 'driving log' or something else more informative than 'db'
 
-    data_df = data_df[abs(data_df.ctrl)<2]
-    # data_df = data_df[abs(data_df.ctrl)>0.01]
-    data_df.ctrl[abs(data_df.ctrl)>1] = 1.0
+    data_df = data_df[abs(data_df.ctrl)>0.0001]
+    data_df.hist(column='ctrl', bins=100)
+    plt.show()
+
+
+    img_paths=data_df.image.tolist()
+    for i in range(15):
+        sample = img_paths[random.randint(0, len(img_paths))]
+        img = load_image(sample)
+        plt.imshow(img)
+        plt.show()
+
 
     X = data_df['image'].values
     y = data_df['ctrl'].values
@@ -152,6 +165,8 @@ def build_model(args):
 
     return model
 
+
+@email_when_finished
 def train_model(model, config, X_train, X_validate, y_train, y_validate):
     """
     Trains model, use validation set to display performance while training.
