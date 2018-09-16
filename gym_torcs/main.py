@@ -32,7 +32,7 @@ def load_image(image_path):
 def load_data(config):
     data_df = pd.read_csv(os.path.join(config.data_dir, 'db.csv'))  # TODO: do rename this to 'driving log' or something else more informative than 'db'
 
-    data_df = data_df[abs(data_df.ctrl)>0.0001]
+    data_df = data_df[abs(data_df.ctrl)>0.0005]
     data_df.hist(column='ctrl', bins=100)
     plt.show()
 
@@ -178,7 +178,7 @@ def train_model(model, config, X_train, X_validate, y_train, y_validate):
                                  save_best_only=config.save_best_only,
                                  mode = 'auto')
 
-    model.compile(loss='mean_squared_error', optimizer=kr.optimizers.Adam(lr=config.learning_rate))
+    model.compile(loss='mean_absolute_error', optimizer=kr.optimizers.Adam(lr=config.learning_rate))
 
     tensorboard = TensorBoard(log_dir ="./logs/{}".format(time.time()))
 

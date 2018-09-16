@@ -14,10 +14,7 @@ def load_data(config):
     # data_df.hist(column='ctrl', bins=100)
     # plt.show()
 
-    data_df = data_df[abs(data_df.ctrl)<2]
-    data_df = data_df[abs(data_df.ctrl)>0.01]
-    data_df.ctrl[abs(data_df.ctrl)>1] = 1.0
-
+    data_df = data_df[abs(data_df.ctrl)>0.0001]
     data_df.hist(column='ctrl', bins=100)
     plt.show()
 

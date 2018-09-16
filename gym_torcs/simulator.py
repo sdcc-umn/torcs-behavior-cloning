@@ -13,6 +13,7 @@ from tqdm import tqdm
 from keras.models import model_from_json
 from util import *
 from sim_commands import set_sim_size, set_track, obs_vision_to_image_rgb
+import matplotlib.pyplot as plt
 
 TRACK_LIST = ["e-track-4"] #, "g-track-3"]
 
@@ -82,10 +83,10 @@ def drive_example(c):
     '''This is only an example. It will get around the track but the
     correct thing to do is write your own `drive()` function.'''
     S,R= c.S.d,c.R.d
-    target_speed=100
+    target_speed=30
 
     # Steer To Corner
-    R['steer']= S['angle']*10 / PI
+    R['steer']= (S['angle']*2 / PI)
     # Steer To Center
     R['steer']-= S['trackPos']*.10
 
@@ -118,8 +119,8 @@ def drive_example(c):
 
 def drive_model(c, model, img):
     S,R= c.S.d,c.R.d
-    target_speed = 100
-    steering = model.predict(img)[0][0]
+    target_speed = 30
+    steering = model.predict(img)[0][0]*2
     print(steering)
     R['steer'] = steering
 
