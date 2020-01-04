@@ -1,5 +1,5 @@
-# simulator-trials
-Experiments conducted with models run on simulators
+# Torcs Behavior Cloning
+Learn to drive in TORCS from expert example.
 
 # How to use
 ## Python dependencies
